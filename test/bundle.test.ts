@@ -22,7 +22,7 @@ describe.skipIf(process.env.SKIP_BUNDLE_SIZE === 'true' || process.env.ECOSYSTEM
   it('default client bundle size', async () => {
     const clientStats = await analyzeSizes(['**/*.js'], join(rootDir, '.output/public'), rootDir)
 
-    expect.soft(roundToKilobytes(clientStats!.totalBytes)).toMatchInlineSnapshot(`"94.7k"`)
+    expect.soft(roundToKilobytes(clientStats!.totalBytes)).toMatchInlineSnapshot(`"94.8k"`)
     expect.soft(roundToKilobytes(clientStats!.gzipBytes)).toMatchInlineSnapshot(`"35.7k"`)
 
     const entry = await fsp.readFile(join(rootDir, '.output/public', clientStats!.files.find(f => f.startsWith('_nuxt/entry'))!), 'utf8')
@@ -40,7 +40,7 @@ describe.skipIf(process.env.SKIP_BUNDLE_SIZE === 'true' || process.env.ECOSYSTEM
   it('does not ship payload revival machinery in a spa build', async () => {
     const clientStats = await analyzeSizes(['**/*.js'], join(spaRootDir, '.output/public'), spaRootDir)
 
-    expect.soft(roundToKilobytes(clientStats!.totalBytes)).toMatchInlineSnapshot(`"89.3k"`)
+    expect.soft(roundToKilobytes(clientStats!.totalBytes)).toMatchInlineSnapshot(`"89.4k"`)
 
     const contents = await Promise.all(
       (await glob(['**/*.js'], { cwd: join(spaRootDir, '.output/public') }))
@@ -61,6 +61,21 @@ describe.skipIf(process.env.SKIP_BUNDLE_SIZE === 'true' || process.env.ECOSYSTEM
 
     expect(server).not.toContain('Hello World!')
     expect(client).toContain('Hello World!')
+  })
+
+  it.each([
+    ['ssr', rootDir],
+    ['spa', spaRootDir],
+  ])('moves the static head of the app component to the server renderer (%s)', async (_, dir) => {
+    const server = (await Promise.all(
+      (await glob(['**/*.mjs'], { cwd: join(dir, '.output/server') }))
+        .map(file => fsp.readFile(join(dir, '.output/server', file), 'utf8')),
+    )).join('\n')
+    const client = await readClientBundle(join(dir, '.output/public'))
+
+    expect(server).toContain('A static description')
+    expect(client).not.toContain('A static description')
+    expect(client).not.toContain('tags:afterResolve')
   })
 
   it('default client bundle size (pages)', async () => {
@@ -92,7 +107,7 @@ describe.skipIf(process.env.SKIP_BUNDLE_SIZE === 'true' || process.env.ECOSYSTEM
     const serverDir = join(rootDir, '.output/server')
 
     const serverStats = await analyzeSizes(['**/*.mjs'], serverDir, rootDir)
-    expect.soft(roundToKilobytes(serverStats.totalBytes)).toMatchInlineSnapshot(`"220k"`)
+    expect.soft(roundToKilobytes(serverStats.totalBytes)).toMatchInlineSnapshot(`"221k"`)
 
     const packages = getVendorPackages(await glob(['_libs/**/*'], { cwd: serverDir }))
     expect(packages).toMatchInlineSnapshot(`
